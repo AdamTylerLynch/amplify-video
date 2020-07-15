@@ -2,7 +2,6 @@ const inquirer = require('inquirer');
 const fs = require('fs-extra');
 const path = require('path');
 const ejs = require('ejs');
-const chalk = require('chalk');
 const question = require('../../vod-questions.json');
 const { getAWSConfig } = require('../utils/get-aws');
 const { generateIAMAdmin, generateIAMAdminPolicy } = require('./vod-roles');
@@ -106,7 +105,7 @@ async function serviceQuestions(context, options, defaultValuesFilename, resourc
         // Override so config applies
         mcClient = new aws.MediaConvert();
       } catch (e) {
-        console.log(chalk.red(e.message));
+        context.print.error(e.message);
       }
       const advTemplate = await inquirer.prompt(encodingTemplateName);
       props.template.name = advTemplate.encodingTemplate;
@@ -116,7 +115,8 @@ async function serviceQuestions(context, options, defaultValuesFilename, resourc
 
       try {
         jobTemplate = await mcClient.getJobTemplate(params).promise();
-        jobTemplate.JobTemplate.Name = `${jobTemplate.JobTemplate.Name}-${props.shared.resourceName}-${projectDetails.localEnvInfo.envName}`;
+        // Regex: Replaces System- if found at the beginning of the name with ''
+        jobTemplate.JobTemplate.Name = jobTemplate.JobTemplate.Name.replace(/^(System-)/, '');
         delete jobTemplate.JobTemplate.Arn;
         delete jobTemplate.JobTemplate.CreatedAt;
         delete jobTemplate.JobTemplate.LastUpdated;
@@ -125,7 +125,7 @@ async function serviceQuestions(context, options, defaultValuesFilename, resourc
         delete jobTemplate.JobTemplate.Priority;
         fs.outputFileSync(`${targetDir}/video/${props.shared.resourceName}/mediaconvert-job-temp.json`, JSON.stringify(jobTemplate.JobTemplate, null, 4));
       } catch (e) {
-        console.log(chalk.red(e.message));
+        context.print.error(e.message);
       }
     }
   } else {
